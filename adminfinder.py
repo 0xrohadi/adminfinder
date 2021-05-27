@@ -1,152 +1,125 @@
 #!/usr/bin/env python3
+# Author by 0xrohadi
+# Kabupaten Sleman, Yogyakarta, Indonesia
 
-# let's import whatever, we need from standard library
-import requests, argparse, sys, time
-from concurrent.futures import ThreadPoolExecutor
+'''
+Python to fuzzing admin panel login with threading is so fast ;)
+'''
 
+# standard Python libraries
+import requests
+import threading
+import argparse
+import sys
+import time
 
-# i need colors to make it better
-R = '\33[91m'
-G = '\33[92m'
-Y = '\33[93m'
-C = '\33[96m'
-B = '\33[94m'
-P = '\33[95m'
-D = '\33[90m'
-E = '\33[0m'
+threadLock = threading.Lock()
+threads = []
 
-# processing commandline arguments
-ap = argparse.ArgumentParser(prog='adminfinder.py', description='Multiple admin panel finder scan written Python')
-ap.add_argument('-u', '--url', required=True, help='Set target url/website')
-ap.add_argument('-w', '--wordlist', required=True, help='Wordlist to use, default wordlist.txt')
-ap.add_argument('-t', '--thread', required=True, help='Number of threads to use, up tou you')
-
-args = vars(ap.parse_args())
-
-# single user agent
-user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36'
-
-# time
-def local_time():
-    t = time.localtime()
-    current_time = time.strftime('%H:%M:%S', t)
-    return current_time
+class MyThread(threading.Thread):
     
-# let's check the robots.txt file
-def check_robots():
-    url = args['url']
-    if not url.startswith('http://'):
-        url = 'http://'+url
+    def __init__(self, url, wordlist):
+        threading.Thread.__init__(self)
+        self.url = url
+        self.wordlist = wordlist
+    
+    def run(self):
+        do_fuzzing(self.url, self.wordlist)
+
+
+def parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-u',
+        '--url',
+        required = True,
+        help = 'Your target to fuzzing'
+    )
+    parser.add_argument(
+        '-w',
+        '--wordlist',
+        required = True,
+        help = 'Your wordlist ext .text'
+    )
+    args = parser.parse_args()
+    
+    return args
+    
+def get_time():
+    t = time.strftime('[%m-%d-%Y : %H:%M:%S]')
+    return t
+
+def banner():
+    display = '''\033[96m
+ _____             _            _____   _       _     
+|   __|_ _ ___ ___|_|___ ___   |  _  |_| |_____|_|___ 
+|   __| | |- _|- _| |   | . |  |     | . |     | |   |
+|__|  |___|___|___|_|_|_|_  |  |__|__|___|_|_|_|_|_|_|
+                        |___|
+~ Codename: 0xrohadi
+~ Let\'s Do Fuzzing Admin Login ;)\033[0m
+    '''
+    print(display)
+    
+def my_headers():
+    # change user-agent here with your user-agent you want
+    headers = {
+        'User-Agent': 'Bot Python Hahaha',
+        'DNT': '1'
+    }
+    
+    return headers
+
+def convert(url):
+    if url.startswith('http://www.'):
+        return 'http://' + url[len('http://www.'):] + '/'
+    if url.startswith('www.'):
+        return 'http://' + url[len('www.'):] + '/'
     if not url.endswith('/'):
-        url = url+'/'
-    headers = {'User-Agent': user_agent}
-    host = url+'robots.txt'
-    try:
-        req = requests.get(host, headers=headers).status_code
-        if req == 200:
-            print('{g}[+] Yeah robots.txt found{e}'.format(g=G, e=E))
-        else:
-            print('{r}[-] Can\'t not found robots.txt{e}'.format(r=R, e=E))
-    except requests.exceptions.ConnectionError as e:
-        print('{r}[!] Connection error{e}'.format(r=R, e=E))
-    except Exception as e:
-        print('{r}[!] Something error {}{e}'.format(e, r=R, e=E))
-
-# if you find it will display the status response varies
-def admin(url, pass_list):
-    url = args['url']
+        return 'http://' + url + '/'
     if not url.startswith('http://'):
-        url = 'http://'+url
-    if not url.endswith('/'):
-        url = url+'/'
-    headers = {'User-Agent': user_agent}
-    host = url+pass_list
+        return 'http://' + url 
+        
+    return url
+
+def do_fuzzing(url, wordlist):
+    headers = my_headers()
+    url = convert(url)
+    host = url + wordlist
     try:
-        req = requests.get(host, headers=headers).status_code
-        if req == 200:
-            print('{e}|   {g}{:<20}{e} | {g}{:<55}{e}'.format(req, host, g=G, e=E))
+        res = requests.get(host, headers = headers)
+        if (res.status_code == 200):
+            threadLock.acquire()
+            print('\033[92m[+]\033[0m Found: {:<7} | Check: {:<0}'.format(res.status_code, host))
+            threadLock.release()
         else:
-            print('{e}|   {r}{:<20}{e} | {r}{:<55}{e}'.format(req, host, r=R, e=E))
-    except requests.exceptions.ConnectionError as e:
-        print('{r}[!] Your\'e connection internet slow down :({e}'.format(r=R, e=E))
+            threadLock.acquire()
+            print('\033[91m[-]\033[0m Not Found: {0} | {1}'.format(res.status_code, host))
+            threadLock.release()
     except Exception as e:
-        print('{r}[!] Something error {}{e}'.format(e, r=R, e=E))
-
-# requesting immediate processing with the thread
-def admin_scan(url):
-    try:
-        password = args['wordlist']
-        with ThreadPoolExecutor(max_workers=int(args['thread'])) as executor:
-            with open(password, 'r') as password_list:
-                for pass_list in password_list:
-                    pass_list = pass_list.replace('\n', '') 
-                    executor.submit(admin, url, pass_list)
-    except FileNotFound as e:
-        print('{r}[!] File does\'t not exist, check again{e}'.format(r=R, e=E))
-    except KeyboardInterrupt as e:
-        print('{r}[!] CTRL+C detected{e}'.format(r=R, e=E))
-    except Exception as e:
-        print('{r}[!] Something error {}{e}'.format(e, r=R, e=E)) 
-                
-# just a fancy ass banner, you like it bro :)
-def banner_display():
-    # original ascii, i found on google seaech engine
-    p = '''{y}
-                     /|               /\\
-                /^^^/ |^\\Z           /  |
-               |         \\Z         /   |
-               / {r}@{y}        \\Z       /   / \\_______
-  (  \\      _ /            \\Z     /   /         /
-(     ---- /{r}G{y}       |\\      |Z   /   /         /
- (  / ---- \\    /---'/\\     |Z  /   /         /
-            \\/--'   /--/   /Z  /             /
-             |     /--/   |Z  /            / \\_______
-            /     /--/    |Z  \\           /         /
-         --/     /--/     \\Z   |         /         /
-          /     /--/       \\Z  /                  /
-               |--|         \\Z/                  /
-               |---|        /              /----'{g}
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  {g}• {r}ADMIN FINDER SCANN PYTHON
-  {g}• {r}Codename By {c}0xrohadi{r} 
-  {g}• {r}Blog: https://maqlo-heker.blogspot.com {g}
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-               {y} \\---|                     /^^^^^^^^^^^^\\Z
-                 \\-/                                    \\Z
-                  /     /        |                       \\Z
-              \\---'    |\\________|      |_______          |Z
-            \\--'     /\\/ \\|_|_|_||      |_|_|_|_|\\_       |Z
-             '------'            /     /  /      |_       /Z
-                             \\---'    |  / ```````      /Z
-                           \\--'     /\\/  \\ ____________/Z
-                            '------'      \\{e}
-    '''.format(r=R, g=G, c=C, e=E, y=Y)
-    print(p)
-
-# create the play function
+        print(e)
+        sys.exit()
+        
 def main():
-    try:
-        if len(sys.argv) < 2:
-            print(parser.usage())
-        else:
-            banner_display()
-            url = args['url']
-            print('{e}[{c}#{e}] Start on {g}{}{e}'.format(local_time(), e=E, c=C, g=G))
-            print('{e}[{c}#{e}] Checking for robots file in {g}{}{e}'.format(url, e=E, c=C, g=G))
-            check_robots()
-            time.sleep(2)
-            print('{e}[{c}#{e}] Website to scan: {g}{}\n{e}'.format(url, e=E, g=G, c=C))
-            time.sleep(2)
-            print('{e}[{c}•{e}] {:<20} {e}[{c}•{e}] {:<55}{e}'.format('STATUS', 'URL', c=C, e=E))
-            admin_scan(url)
-            print('\n{e}[{c}#{e}] Scan is completed on {g}{}{e}'.format(local_time(), e=E, g=G, c=C))
-            time.sleep(2)
-            print('{e}[{c}#{e}] Have fun using this tools :D'.format(e=E, c=C))
-    except KeyboardInterrupt as e:
-        print('{r}[!] CTRL+C detected{e}'.format(e=E, r=R))
-    except Exception as e:
-        print('{r}[!] Something error {}{e}'.format(e, e=E, r=R))
- 
-# call to start
+    args = parser()
+    time = get_time()
+    if args.url is None:
+        print('Usage: python3 adminfinder.py -u target -w wordlist.txt')
+        sys.exit()
+    else:
+        banner()
+        print('Starting at: {0}\n'.format(time))
+        words = [w.strip() for w in open(args.wordlist, 'r').readlines()]
+        for x in words:
+            t = MyThread(args.url, x)
+            threads.append(t)
+            t.daemon = True
+            t.start()
+        
+        for i in threads:
+            i.join()
+        print('\nDon\'t forget follow me on Twitter: @0xrohadi, Thank You!')
+
+
 if __name__ == '__main__':
     main()

@@ -1,7 +1,9 @@
-# adminfinder
-Multiple Admin Finder Scan With Threads
+# Adminfinder With Python
+Let's do fuzzing Admin Login Website
 # Usage
-$ python adminfinder.py -u site.com -w admin.txt -t 25
+$ python3 adminfinder.py -u site.com -w admin.txt
 
-# Visit
-https://maqlo-heker.blogspot.com
+Twitter: @0xrohadi<br>
+My Blog: https://0xrohadi.blogspot.com<br>
+<br>
+Thanks, have a nice day ;)

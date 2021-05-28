@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # Author by 0xrohadi
-# Kabupaten Sleman, Yogyakarta, Indonesia
 
-# standard Python libraries
+# Standard Python libraries
 import requests
 import threading
 import argparse
@@ -65,7 +64,7 @@ def banner():
     print(display)
     
 def my_headers():
-    # change user-agent here with your user-agent you want
+    # Change User-Agent here with your User-Agent you want ;)
     headers = {
         'User-Agent': 'Bot Python Hahaha',
         'DNT': '1'
